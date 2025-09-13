@@ -47,7 +47,7 @@ class EuropeanCallOption:
         d1 = (torch.log(S / self.K) + (self.r - self.q + 0.5 * self.sigma**2) * tau) / (self.sigma * sqrt_tau)
         d2 = d1 - self.sigma * sqrt_tau
         norm = torch.distributions.Normal(0, 1)
-        return S * torch.exp(-self.q * tau) * norm.cdf(d1) - K * torch.exp(-r * tau) * norm.cdf(d2)
+        return S * torch.exp(-self.q * tau) * norm.cdf(d1) - self.K * torch.exp(-self.r * tau) * norm.cdf(d2)
 
     def calcGammaOption(self, S, t):
         tau = self.T - t
