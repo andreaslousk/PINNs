@@ -23,23 +23,29 @@ class EuropeanCallOption:
         self.S = torch.linspace(0.0, self.S_max, self.M + 1, dtype=torch.float32)
         self.t = torch.linspace(0.0, self.T, self.N + 1, dtype=torch.float32)
 
+        timeGrid, spotGrid = torch.meshgrid(self.t, self.S, indexing="ij")
+        self.gridPoints = torch.stack((timeGrid, spotGrid), dim=2)
+        
         # creating member to store option prices to compare our PINN solution with the analytic solution
         
         self.C = torch.zeros((N + 1, M + 1))
-        self.C[:, 0] = torch.as_tensor(0, dtype = torch.float32)
-        self.C[-1,:] = torch.maximum(self.S - self.K, torch.tensor(0.0))
+        self.C[ : , 0] = torch.as_tensor(0, dtype = torch.float32)
+        self.C[-1 ,:] = torch.maximum(self.S - self.K, torch.tensor(0.0))
 
-        t_grid, S_grid = torch.meshgrid(self.t[:-1], self.S[1:], indexing="ij")
-        self.C[:-1, 1:] = self.priceOption(S_grid, t_grid)
+        reducedGrid = self.gridPoints[ : -1, 1 : , :]
+        currTimePoints, currSpotPoints = reducedGrid[..., 0], reducedGrid[..., 1]
+        self.C[:-1, 1:] = self.priceOption(currSpotPoints, currTimePoints)
 
         # creating member to store option deltas and gammas to filter data via greeks
     
-        t_grid, S_grid = torch.meshgrid(self.t[:-1], self.S, indexing="ij")
+        reducedGrid = self.gridPoints[ : -1, : , :]
+        currTimePoints, currSpotPoints = reducedGrid[..., 0], reducedGrid[..., 1]
         self.gamma = torch.zeros((N, M + 1))
-        self.gamma = self.calcGammaOption(S_grid, t_grid)
-
+        self.gamma = self.calcGammaOption(currSpotPoints, currTimePoints)
+        self.gamma[ : , 0] = torch.as_tensor(0, dtype = torch.float32)
+        
         self.delta = torch.zeros_like(self.gamma)
-        self.delta = self.calcDeltaOption(S_grid, t_grid)
+        self.delta = self.calcDeltaOption(currSpotPoints, currTimePoints)
         
     def priceOption(self, S, t):
         tau = torch.as_tensor(self.T - t, dtype=torch.float64)
@@ -65,12 +71,10 @@ class EuropeanCallOption:
     
     def filterDataByGamma(self, lowerGammaBound, upperGammaBound):
         mask = (lowerGammaBound <= self.gamma) & (self.gamma <= upperGammaBound)
-        t_grid, S_grid = torch.meshgrid(self.t[:-1], self.S, indexing="ij")
-        grid = torch.stack((t_grid, S_grid), dim=2)
-        return grid[mask], self.C[ : -1, :][mask]
+        reducedGrid = self.gridPoints[ : -1, : , :]
+        return reducedGrid[mask], self.C[ : -1, :][mask].reshape(-1, 1), self.gamma[mask].reshape(-1, 1)
 
     def filterDataByDelta(self, lowerDeltaBound, upperDeltaBound):
         mask = (lowerDeltaBound <= self.delta) & (self.delta <= upperDeltaBound)
-        t_grid, S_grid = torch.meshgrid(self.t[:-1], self.S, indexing="ij")
-        grid = torch.stack((t_grid, S_grid), dim=2)
-        return grid[mask], self.C[ : -1, :][mask]
+        reducedGrid = self.gridPoints[ : -1, : , :]
+        return reducedGrid[mask], self.C[ : -1, :][mask].reshape(-1, 1), self.gamma[mask].reshape(-1, 1)
