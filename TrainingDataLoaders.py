@@ -45,11 +45,11 @@ class TrainingDataLoader:
         self.boundaryPointsTrain = boundaryPoints[boundaryShuffle]
         self.boundaryTarget = callPricesBoundary[boundaryShuffle]
 
-    def getCollocationTrainingData():
+    def getCollocationTrainingData(self):
         return self.collPointsTrain, self.callPricesCompare, self.collTarget, self.collGammaWeights
 
-    def getExpirationTrainingData():
-        return self.expPointsTrain, self.expTarget
+    def getExpirationTrainingData(self):
+        return self.expPointsTrain, self.expTarget.reshape(-1, 1)
 
-    def getBoundaryTrainingData():
-        return self.boundaryPointsTrain, self.boundaryTarget
+    def getBoundaryTrainingData(self):
+        return self.boundaryPointsTrain, self.boundaryTarget.reshape(-1, 1)
