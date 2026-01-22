@@ -16,20 +16,24 @@ def setSeed(seed=42):
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
-    np.random.seed(seed)
-    random.seed(seed)
+
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
+
+    np.random.seed(seed)
+
+    random.seed(seed)
 
 
 def main():
     # Set random seed for reproducibility
     SEED = 42
     setSeed(SEED)
+
     print(f"Random seed set to: {SEED}")
+
     # Hyperparameters
     EPOCHS = 531
-    # BATCH_SIZE = 32
     LEARNING_RATE = 0.001
 
     # Black-Scholes parameters
@@ -43,8 +47,9 @@ def main():
 
     option = EuropeanCallOption(K, T, r, sigma, q, M, N)
 
-    lowerDeltaBound = 0.25
-    upperDeltaBound = 0.75
+    # Data filtering and sampling
+    lowerDeltaBound = 0.35
+    upperDeltaBound = 0.65
     numCollPointsTrain = 15000
     numExpPointsTrain = 300
     numBoundaryPointsTrain = 300
@@ -53,14 +58,17 @@ def main():
         option, lowerDeltaBound, upperDeltaBound, numCollPointsTrain, numExpPointsTrain, numBoundaryPointsTrain)
 
     model = Model1(neurons=50)
+
     xF, pricesF, targetF, gammaWeightsF = trainingDataLoader.getCollocationTrainingData()
     xB, targetB = trainingDataLoader.getBoundaryTrainingData()
     xExp, targetExp = trainingDataLoader.getExpirationTrainingData()
-    optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
-    # Learning rate scheduler (optional)
 
     BATCH_SIZE = 64
+
+    # Optimizer and learning rate scheduler (optional)
+    optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=100, gamma=0.95)
+
     trainer = ModelImplementation(model, xF, targetF, xB, targetB, xExp, targetExp,
                                   optimizer, EPOCHS, T, K, r, q, sigma, batchSize=BATCH_SIZE, learningRateScheduler=scheduler)
 

@@ -4,11 +4,16 @@ from torch.utils.data import TensorDataset, DataLoader
 from tqdm import tqdm
 
 
-class Model:
+class ModelImplementation:
     def __init__(self, model, xF, targetF, xB, targetB, xExp, targetExp,
                  optimizer, epochs, T, K, r, q, sigma, batchSize=32,
                  lossWeightF=100, lossWeightB=1, lossWeightExp=1,
-                 gradClipMaxNorm=1.0, learningRateScheduler=None):
+                 gradClipMaxNorm=1.0, learningRateScheduler=None, saveBestModel=True, modelSavePath='bestModel.pth'):
+        self.saveBestModel = saveBestModel
+        self.modelSavePath = modelSavePath
+        self.bestLoss = float('inf')
+        self.bestEpoch = 0
+        
         self.model = model
 
         self.T = T
@@ -197,6 +202,22 @@ class Model:
             avgLossExp = epochLossExp / maxBatches
             avgLossF = epochLossF / maxBatches
 
+            # Calculate total loss for this epoch
+            avgTotalLoss = (self.lossWeightB * avgLossB + 
+                           self.lossWeightExp * avgLossExp + 
+                           self.lossWeightF * avgLossF)
+
+            # Save best model
+            if self.saveBestModel and avgTotalLoss < self.bestLoss:
+                self.bestLoss = avgTotalLoss
+                self.bestEpoch = epoch
+                torch.save(self.model.state_dict(), self.modelSavePath)
+                print(f'\nEpoch {epoch}:')
+                print(f'  Loss S=0        : {avgLossB:.4f}')
+                print(f'  Loss Expiration : {avgLossExp:.4f}')
+                print(f'  Loss Collocation: {avgLossF:.4f}')
+                print(f"  💾 New best model saved! (Total loss: {avgTotalLoss:.6f})")
+            
             # Store losses
             self.lossB.append(avgLossB)
             self.lossExp.append(avgLossExp)
